@@ -1,0 +1,398 @@
+let mode = "neutral"; // Modes: 'reveal', 'invert', 'erase', 'neutral'
+let sunsetImg;
+let invertImg;
+let brushMask;
+let spongebobActive = false; // Tracks if SpongeBob layer is active
+
+function setup() {
+  createCanvas(400, 400);
+  background(0); // Solid black canvas to start
+
+  // 1. High-res original graphics layer
+  sunsetImg = createGraphics(width, height);
+  drawSunsetGraphics(sunsetImg);
+
+  // 2. High-res pre-inverted layer
+  invertImg = createGraphics(width, height);
+  updateImageLayers();
+
+  // 3. Circular mask buffer
+  brushMask = createGraphics(50, 50);
+  brushMask.noStroke();
+  brushMask.fill(255);
+  brushMask.ellipse(25, 25, 50, 50);
+
+  console.log("Started in Neutral Mode. Press S to toggle SpongeBob layer, then R, I, or E to paint.");
+}
+
+function draw() {
+  // Continuous brush painting on hover
+  if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+    if (mouseX !== pmouseX || mouseY !== pmouseY) {
+      if (mode === "reveal") {
+        stampBrush(sunsetImg, pmouseX, pmouseY, mouseX, mouseY);
+      } else if (mode === "invert") {
+        stampBrush(invertImg, pmouseX, pmouseY, mouseX, mouseY);
+      } else if (mode === "erase") {
+        stroke(0);
+        strokeWeight(50);
+        strokeCap(ROUND);
+        line(pmouseX, pmouseY, mouseX, mouseY);
+      }
+    }
+  }
+}
+
+// Brush stamping function
+function stampBrush(sourceImg, px, py, x, y) {
+  let d = dist(px, py, x, y);
+  let steps = max(1, min(20, floor(d / 3)));
+
+  for (let i = 0; i <= steps; i++) {
+    let curX = lerp(px, x, i / steps);
+    let curY = lerp(py, y, i / steps);
+
+    let patch = sourceImg.get(curX - 25, curY - 25, 50, 50);
+    patch.mask(brushMask);
+    image(patch, curX - 25, curY - 25);
+  }
+}
+
+// Base Sunset Scene
+function drawSunsetGraphics(pg) {
+  // Sky Gradient
+  for (let y = 0; y <= 250; y++) {
+    let inter = map(y, 0, 250, 0, 1);
+    let c = lerpColor(color(44, 0, 62), color(243, 113, 33), inter);
+    pg.stroke(c);
+    pg.line(0, y, width, y);
+  }
+
+  // Glowing Sun
+  pg.noStroke();
+  for (let r = 90; r > 0; r -= 2) {
+    let alphaVal = map(r, 0, 90, 255, 20);
+    pg.fill(255, 245, 165, alphaVal);
+    pg.ellipse(200, 180, r, r);
+  }
+
+  // Ocean
+  pg.fill(15, 52, 96);
+  pg.rect(0, 250, width, 150);
+
+  // Ocean Reflections
+  for (let w = 120; w > 0; w -= 10) {
+    let alphaVal = map(w, 0, 120, 150, 10);
+    pg.fill(255, 245, 165, alphaVal);
+    pg.ellipse(200, 275, w, 8);
+    pg.ellipse(200, 305, w * 1.3, 10);
+    pg.ellipse(200, 335, w * 1.6, 12);
+  }
+}
+
+// SpongeBob & Big Pineapple Layer
+function renderCharacterToLayer(pg) {
+  pg.push();
+
+  // --- BIG PINEAPPLE HOUSE (Background) ---
+  pg.push();
+  pg.translate(110, 210);
+
+  // Large Green Leaves
+  pg.fill(34, 177, 76);
+  pg.stroke(0);
+  pg.strokeWeight(2.5);
+  
+  pg.beginShape();
+  pg.vertex(0, -140);
+  pg.bezierVertex(-40, -190, -80, -140, -60, -90);
+  pg.bezierVertex(-30, -120, -10, -140, 0, -140);
+  pg.endShape(CLOSE);
+
+  pg.beginShape();
+  pg.vertex(0, -140);
+  pg.bezierVertex(40, -190, 80, -140, 60, -90);
+  pg.bezierVertex(30, -120, 10, -140, 0, -140);
+  pg.endShape(CLOSE);
+
+  pg.beginShape();
+  pg.vertex(0, -140);
+  pg.bezierVertex(-20, -210, 20, -210, 0, -140);
+  pg.endShape(CLOSE);
+
+  // Large Pineapple Body
+  pg.fill(255, 140, 0);
+  pg.ellipse(0, 10, 210, 260);
+
+  // Cross-hatch Grid Pattern
+  pg.stroke(200, 80, 0);
+  pg.strokeWeight(2);
+  for (let i = -100; i <= 100; i += 28) {
+    pg.line(i - 30, -110, i + 40, 120);
+    pg.line(i + 30, -110, i - 40, 120);
+  }
+
+  // Portholes & Metal Door
+  pg.stroke(0);
+  pg.strokeWeight(2.5);
+  pg.fill(130, 170, 220);
+  pg.rectMode(CENTER);
+  pg.rect(-50, 75, 52, 80, 26, 26, 0, 0);
+
+  pg.fill(180, 200, 220);
+  pg.ellipse(55, -25, 42, 42);
+  pg.fill(80, 160, 220);
+  pg.ellipse(55, -25, 24, 24);
+
+  pg.fill(180, 200, 220);
+  pg.ellipse(-50, 65, 24, 24);
+  pg.fill(80, 160, 220);
+  pg.ellipse(-50, 65, 12, 12);
+
+  pg.pop();
+
+  // --- SPONGEBOB (Foreground) ---
+  pg.push();
+  pg.translate(245, 165);
+
+  // 1. Shirt & Tie
+  pg.fill(255);
+  pg.stroke(0);
+  pg.strokeWeight(2);
+  pg.rectMode(CORNER);
+  pg.rect(-45, 80, 90, 20);
+
+  // Collars
+  pg.triangle(-25, 80, -10, 80, -18, 92);
+  pg.triangle(10, 80, 25, 80, 18, 92);
+
+  // Tie
+  pg.fill(220, 20, 20);
+  pg.triangle(-6, 83, 6, 83, 0, 90);
+  pg.quad(-4, 90, 4, 90, 6, 110, -6, 110);
+
+  // 2. Brown Pants
+  pg.fill(139, 69, 19);
+  pg.rect(-45, 100, 90, 22);
+
+  // Belt Lines
+  pg.fill(0);
+  pg.noStroke();
+  pg.rect(-35, 104, 12, 4);
+  pg.rect(-10, 104, 12, 4);
+  pg.rect(12, 104, 12, 4);
+  pg.rect(32, 104, 8, 4);
+
+  // Pant Legs
+  pg.stroke(0);
+  pg.strokeWeight(2);
+  pg.fill(139, 69, 19);
+  pg.rect(-32, 122, 22, 14);
+  pg.rect(10, 122, 22, 14);
+
+  // 3. Legs & Shoes
+  pg.fill(255, 225, 0);
+  pg.rect(-24, 136, 6, 22);
+  pg.fill(255);
+  pg.rect(-26, 148, 10, 10);
+  pg.fill(0, 150, 255); pg.noStroke(); pg.rect(-26, 150, 10, 2);
+  pg.fill(255, 0, 0); pg.rect(-26, 153, 10, 2);
+  pg.stroke(0); pg.strokeWeight(2); pg.fill(0);
+  pg.ellipse(-23, 162, 18, 10);
+
+  pg.push();
+  pg.translate(21, 136);
+  pg.rotate(-0.3);
+  pg.fill(255, 225, 0);
+  pg.rect(-3, 0, 6, 22);
+  pg.fill(255);
+  pg.rect(-5, 12, 10, 10);
+  pg.fill(0, 150, 255); pg.noStroke(); pg.rect(-5, 14, 10, 2);
+  pg.fill(255, 0, 0); pg.rect(-5, 17, 10, 2);
+  pg.stroke(0); pg.strokeWeight(2); pg.fill(0);
+  pg.ellipse(2, 26, 20, 10);
+  pg.pop();
+
+  // 4. Yellow Wavy Body
+  pg.fill(255, 225, 0);
+  pg.stroke(0);
+  pg.strokeWeight(2.5);
+
+  pg.beginShape();
+  pg.vertex(-45, -20);
+  pg.bezierVertex(-30, -25, -15, -18, 0, -24);
+  pg.bezierVertex(15, -18, 30, -26, 45, -20);
+  pg.bezierVertex(48, 0, 42, 25, 47, 50);
+  pg.bezierVertex(43, 65, 46, 75, 45, 80);
+  pg.vertex(-45, 80);
+  pg.bezierVertex(-47, 65, -42, 45, -46, 25);
+  pg.bezierVertex(-42, 5, -48, -10, -45, -20);
+  pg.endShape(CLOSE);
+
+  // Pores
+  pg.fill(160, 180, 0, 180);
+  pg.noStroke();
+  pg.ellipse(-32, -5, 12, 16);
+  pg.ellipse(-36, 35, 10, 12);
+  pg.ellipse(32, -8, 14, 10);
+  pg.ellipse(34, 42, 12, 14);
+  pg.ellipse(-20, 65, 8, 8);
+  pg.ellipse(25, 68, 10, 8);
+
+  // 5. Mouth & Teeth
+  pg.stroke(0);
+  pg.strokeWeight(2);
+  pg.fill(100, 10, 10);
+  pg.beginShape();
+  pg.vertex(-30, 25);
+  pg.bezierVertex(-15, 60, 15, 60, 30, 25);
+  pg.bezierVertex(15, 30, -15, 30, -30, 25);
+  pg.endShape(CLOSE);
+
+  pg.fill(255, 120, 140);
+  pg.beginShape();
+  pg.vertex(-12, 48);
+  pg.bezierVertex(-5, 40, 5, 40, 12, 48);
+  pg.bezierVertex(5, 54, -5, 54, -12, 48);
+  pg.endShape(CLOSE);
+
+  pg.fill(255);
+  pg.stroke(0);
+  pg.strokeWeight(1.5);
+  pg.rect(-10, 30, 8, 9);
+  pg.rect(2, 30, 8, 9);
+
+  // Cheeks & Freckles
+  pg.fill(255, 140, 0, 180);
+  pg.stroke(220, 80, 0);
+  pg.strokeWeight(1.5);
+  pg.arc(-30, 22, 14, 10, PI, TWO_PI);
+  pg.arc(30, 22, 14, 10, PI, TWO_PI);
+
+  pg.fill(180, 50, 0);
+  pg.noStroke();
+  pg.ellipse(-33, 19, 2, 2); pg.ellipse(-30, 18, 2, 2); pg.ellipse(-27, 19, 2, 2);
+  pg.ellipse(27, 19, 2, 2); pg.ellipse(30, 18, 2, 2); pg.ellipse(33, 19, 2, 2);
+
+  // 6. Eyes & Nose
+  pg.stroke(0);
+  pg.strokeWeight(2);
+  pg.fill(255);
+  pg.ellipse(-14, 2, 34, 34);
+  pg.ellipse(14, 2, 34, 34);
+
+  pg.fill(0, 160, 230);
+  pg.ellipse(-10, 2, 16, 16);
+  pg.ellipse(10, 2, 16, 16);
+
+  pg.fill(0);
+  pg.ellipse(-10, 2, 8, 8);
+  pg.ellipse(10, 2, 8, 8);
+
+  pg.strokeWeight(2);
+  pg.line(-22, -12, -26, -20);
+  pg.line(-14, -15, -14, -23);
+  pg.line(-6, -13, -2, -21);
+  pg.line(6, -13, 2, -21);
+  pg.line(14, -15, 14, -23);
+  pg.line(22, -12, 26, -20);
+
+  pg.fill(255, 225, 0);
+  pg.stroke(0);
+  pg.strokeWeight(2);
+  pg.beginShape();
+  pg.vertex(0, 6);
+  pg.bezierVertex(12, 4, 18, 14, 10, 18);
+  pg.bezierVertex(2, 18, 0, 10, 0, 6);
+  pg.endShape();
+
+  // 7. REALISTIC CARTOON HANDS & ARMS
+  pg.fill(255);
+  pg.rect(-50, 40, 10, 12, 2);
+  pg.fill(255, 225, 0);
+  pg.strokeWeight(2);
+  pg.line(-50, 46, -65, 36);
+  
+  pg.push();
+  pg.translate(-67, 34);
+  pg.rotate(-0.3);
+  pg.fill(255, 225, 0);
+  pg.ellipse(0, 0, 10, 10);
+  pg.ellipse(-4, -4, 4, 6);
+  pg.ellipse(-2, -7, 4, 7);
+  pg.ellipse(2, -7, 4, 7);
+  pg.ellipse(5, -4, 4, 6);
+  pg.pop();
+
+  pg.fill(255);
+  pg.rect(40, 40, 10, 12, 2);
+  pg.fill(255, 225, 0);
+  pg.strokeWeight(2);
+  pg.line(50, 46, 65, 56);
+  
+  pg.push();
+  pg.translate(67, 58);
+  pg.rotate(0.3);
+  pg.fill(255, 225, 0);
+  pg.ellipse(0, 0, 10, 10);
+  pg.ellipse(-5, -4, 4, 6);
+  pg.ellipse(-2, -7, 4, 7);
+  pg.ellipse(2, -7, 4, 7);
+  pg.ellipse(5, -4, 4, 6);
+  pg.pop();
+
+  pg.pop();
+  pg.pop();
+}
+
+function updateImageLayers() {
+  drawSunsetGraphics(sunsetImg);
+
+  if (spongebobActive) {
+    renderCharacterToLayer(sunsetImg);
+  }
+
+  invertImg.image(sunsetImg, 0, 0);
+  invertImg.filter(INVERT);
+}
+
+function keyPressed() {
+  if (key === 's' || key === 'S') {
+    spongebobActive = !spongebobActive;
+    updateImageLayers();
+
+    if (spongebobActive) {
+      mode = "reveal";
+      console.log("🧽 SpongeBob + Big Pineapple Layer ADDED! Hover in Reveal mode to paint.");
+    } else {
+      console.log("🚫 SpongeBob Layer REMOVED!");
+    }
+  }
+
+  if (key === ' ') {
+    mode = "neutral";
+    console.log("⏸️ Mode: Neutral");
+  }
+
+  if (key === 'r' || key === 'R') {
+    mode = "reveal";
+    console.log("🌅 Mode: Reveal");
+  }
+
+  if (key === 'i' || key === 'I') {
+    mode = "invert";
+    console.log("🔄 Mode: Invert");
+  }
+
+  if (key === 'e' || key === 'E') {
+    mode = "erase";
+    console.log("🧽 Mode: Erase");
+  }
+
+  if (key === 'c' || key === 'C') {
+    spongebobActive = false;
+    updateImageLayers();
+    background(0);
+    console.log("🧹 Canvas Cleared");
+  }
+}
