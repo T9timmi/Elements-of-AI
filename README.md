@@ -1,5 +1,6 @@
 # Elements-of-AI
 ## Summary
+A creative p5.js painting application featuring interactive modes like Reveal, Invert, and Erase.
 
 S Key: Toggles the SpongeBob and Pineapple House layer on or off.
 
